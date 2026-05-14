@@ -298,8 +298,9 @@ async function checkBuyValue() {
     if (txt === 'NO_KEY') { div.innerHTML = '<div class="error-box">Tap the banner at the top to add your free Gemini API key.</div>'; return; }
     if (!txt) throw new Error('No response from AI');
     if (txt.startsWith('API_ERROR:')) throw new Error(txt.replace('API_ERROR:', ''));
-    const m = txt.match(/\{[\s\S]*\}/);
-    if (!m) { console.error('Could not find JSON in response:', txt); throw new Error('Bad response format'); }
+    const clean1 = txt.replace(/```json/g,'').replace(/```/g,'').trim();
+    const m = clean1.match(/\{[\s\S]*\}/);
+    if (!m) { console.error('Raw response:', txt); throw new Error('Bad response format'); }
     const d = JSON.parse(m[0]);
     const wnP = d.whatnot_typical - ask - (d.whatnot_typical * (WN_FEE + WN_PROC)) - WN_FIX;
     const ebP = d.ebay_typical - ask - (d.ebay_typical * (EB_FEE + EB_PROC));
@@ -330,8 +331,9 @@ async function getResaleSuggestion() {
     const txt = await callAI(prompt);
     if (txt === 'NO_KEY') { div.innerHTML = '<div class="error-box">Tap the banner at the top to add your free Gemini API key.</div>'; return; }
     if (!txt) throw new Error();
-    const m = txt.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error();
+    const clean2 = txt.replace(/```json/g,'').replace(/```/g,'').trim();
+    const m = clean2.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('Bad response format');
     const d = JSON.parse(m[0]);
     // Auto-fill the selling price field with eBay recommended
     document.getElementById('resalePrice').value = d.ebay_recommended.toFixed(2);

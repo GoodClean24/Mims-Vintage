@@ -69,13 +69,13 @@ window.addEventListener('load', function() {
 window.signInWithGoogle = function() {
   document.getElementById('authStatus').textContent = 'Redirecting to Google...';
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithRedirect(provider).catch(function(err) {
+  window.auth.signInWithRedirect(provider).catch(function(err) {
     document.getElementById('authStatus').textContent = 'Sign in failed: ' + err.message;
   });
 };
 
 window._fbSignOut = function() {
-  auth.signOut();
+  window.auth.signOut();
 };
 
 window._fbSave = async function(data) {

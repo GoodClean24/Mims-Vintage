@@ -272,21 +272,17 @@ function save() {
     setSaveStatus('Saving...', '#fbbf24');
     clearTimeout(_saveTimer);
     _saveTimer = setTimeout(function() {
-      console.log('[Firebase] Attempting save, uid:', _uid);
       window.db.collection('mimsVintage').doc(_uid).set({
         data: JSON.stringify(appData)
       }).then(function() {
-        console.log('[Firebase] Save successful');
         setSaveStatus('Saved ✓', '#6ee7b7');
         setTimeout(function() { setSaveStatus('Ready', '#aaa'); }, 2000);
       }).catch(function(e) {
-        console.error('[Firebase] Save failed:', e.code, e.message);
-        setSaveStatus('Saved locally', '#aaa');
+        setSaveStatus('ERR: ' + e.code, '#f87171');
       });
     }, 1500);
   } else {
-    console.warn('[Firebase] Save skipped — uid:', _uid, 'db:', !!window.db);
-    setSaveStatus('Saved locally', '#aaa');
+    setSaveStatus('LOCAL (uid:' + (_uid?'ok':'null') + ' db:' + (window.db?'ok':'null') + ')', '#f87171');
   }
 }
 

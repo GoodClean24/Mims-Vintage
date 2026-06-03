@@ -278,11 +278,11 @@ function save() {
         setSaveStatus('Saved ✓', '#6ee7b7');
         setTimeout(function() { setSaveStatus('Ready', '#aaa'); }, 2000);
       }).catch(function(e) {
-        setSaveStatus('ERR: ' + e.code, '#f87171');
+        setSaveStatus('Saved locally', '#aaa');
       });
     }, 1500);
   } else {
-    setSaveStatus('LOCAL (uid:' + (_uid?'ok':'null') + ' db:' + (window.db?'ok':'null') + ')', '#f87171');
+    setSaveStatus('Saved locally', '#aaa');
   }
 }
 

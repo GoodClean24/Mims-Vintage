@@ -6,34 +6,79 @@
 <title>Mims Vintage</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script>
-// ── PASTE YOUR FIREBASE CONFIG HERE ──────────────────────
-const firebaseConfig = {
+window.addEventListener('load', function() {
+
+  // ── PASTE YOUR FIREBASE CONFIG HERE ────────────────────
+  const firebaseConfig = {
   apiKey: "AIzaSyAIVK_WBVJ8VgS_yIOEt8EcNvo46ZgX5dA",
   authDomain: "mims-vintage-fa075.firebaseapp.com",
   projectId: "mims-vintage-fa075",
   storageBucket: "mims-vintage-fa075.firebasestorage.app",
   messagingSenderId: "381457604052",
   appId: "1:381457604052:web:b2ae41cd4bd45bf532ca41"
-};
-// ─────────────────────────────────────────────────────────
+  };
+  // ───────────────────────────────────────────────────────
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
+  firebase.initializeApp(firebaseConfig);
+  window.db = firebase.firestore();
+  window.auth = firebase.auth();
 
-async function fbSave(collection, docId, data) {
-  await db.collection(collection).doc(docId).set(data);
-}
-async function fbGet(collection, docId) {
-  const snap = await db.collection(collection).doc(docId).get();
-  return snap.exists ? snap.data() : null;
-}
-window._fbSave = fbSave;
-window._fbGet = fbGet;
+  async function fbSave(collection, docId, data) {
+    await db.collection(collection).doc(docId).set(data);
+  }
+  async function fbGet(collection, docId) {
+    const snap = await db.collection(collection).doc(docId).get();
+    return snap.exists ? snap.data() : null;
+  }
+  window._fbSave = fbSave;
+  window._fbGet = fbGet;
+
+  auth.onAuthStateChanged(async function(user) {
+    if (user) {
+      window._currentUserId = user.uid;
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('userBar').style.display = 'flex';
+      document.getElementById('userName').textContent = user.displayName || user.email || 'Signed in';
+      try {
+        const data = await fbGet('mimsVintage', user.uid);
+        if (data && data.inventory) {
+          window.S.inventory = JSON.parse(data.inventory);
+        } else {
+          const local = localStorage.getItem('mimsInventory');
+          if (local) {
+            window.S.inventory = JSON.parse(local);
+            fbSave('mimsVintage', user.uid, { inventory: local });
+          }
+        }
+      } catch(e) {
+        console.warn('Firebase load failed:', e.message);
+        try {
+          const local = localStorage.getItem('mimsInventory');
+          if (local) window.S.inventory = JSON.parse(local);
+        } catch(e2) {}
+      }
+      if (window._onAppReady) window._onAppReady();
+    } else {
+      auth.getRedirectResult().then(function(result) {
+        if (result && result.user) {
+          // onAuthStateChanged will fire automatically
+        } else {
+          document.getElementById('loginOverlay').style.display = 'flex';
+          document.getElementById('userBar').style.display = 'none';
+          window._currentUserId = null;
+        }
+      }).catch(function(err) {
+        document.getElementById('loginOverlay').style.display = 'flex';
+        document.getElementById('authStatus').textContent = 'Sign in failed: ' + err.message;
+      });
+    }
+  });
+
+});
 
 window.signInWithGoogle = function() {
   document.getElementById('authStatus').textContent = 'Redirecting to Google...';
@@ -43,47 +88,9 @@ window.signInWithGoogle = function() {
   });
 };
 
-window._fbSignOut = function() { auth.signOut(); };
-
-// Must call getRedirectResult BEFORE onAuthStateChanged
-auth.getRedirectResult().then(function(result) {
-  // onAuthStateChanged handles the rest — just catch errors here
-}).catch(function(err) {
-  console.error('Redirect result error:', err.message);
-  document.getElementById('authStatus').textContent = 'Sign-in failed: ' + err.message;
-});
-
-auth.onAuthStateChanged(async function(user) {
-  if (user) {
-    window._currentUserId = user.uid;
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('userBar').style.display = 'flex';
-    document.getElementById('userName').textContent = user.displayName || user.email;
-    try {
-      const data = await fbGet('mimsVintage', user.uid);
-      if (data && data.inventory) {
-        window.S.inventory = JSON.parse(data.inventory);
-      } else {
-        const local = localStorage.getItem('mimsInventory');
-        if (local) {
-          window.S.inventory = JSON.parse(local);
-          fbSave('mimsVintage', user.uid, { inventory: local });
-        }
-      }
-    } catch(e) {
-      console.warn('Firebase load failed:', e.message);
-      try {
-        const local = localStorage.getItem('mimsInventory');
-        if (local) window.S.inventory = JSON.parse(local);
-      } catch(e2) {}
-    }
-    if (window._onAppReady) window._onAppReady();
-  } else {
-    document.getElementById('loginOverlay').style.display = 'flex';
-    document.getElementById('userBar').style.display = 'none';
-    window._currentUserId = null;
-  }
-});
+window._fbSignOut = function() {
+  auth.signOut();
+};
 </script>
 
 <style>

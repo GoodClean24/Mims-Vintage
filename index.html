@@ -234,6 +234,9 @@ input:focus,select:focus{outline:none;border-color:var(--gold);}
   <div id="invList"></div>
 </div>
 
+<!-- Inventory Edit Modal -->
+<div id="invEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:flex-end;justify-content:center"></div>
+
 <!-- Sold Platform Popup -->
 <div id="soldPopup" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:flex-end;justify-content:center">
   <div style="background:white;border-radius:16px 16px 0 0;padding:24px;width:100%;max-width:480px">
@@ -394,6 +397,7 @@ function calcCraft(type) {
   var auto=price<=0;
   if(auto) price=Math.ceil(cost*2.25*4)/4;
   showProfit("craftResults",name,cost,price,details,auto);
+  setTimeout(function(){ g("craftResults").scrollIntoView({behavior:"smooth",block:"start"}); },100);
 }
 
 function calcResale(){
@@ -404,6 +408,7 @@ function calcResale(){
   if(price<=0){alert("Please enter your selling price");return;}
   var details=cost>0?rowT("Your total cost","$"+cost.toFixed(2)):rowT("Your cost","<span style='color:#aaa;font-style:italic'>Not entered</span>");
   showProfit("resaleResults",item,cost,price,details,false);
+  setTimeout(function(){ g("resaleResults").scrollIntoView({behavior:"smooth",block:"start"}); },100);
 }
 
 function showProfit(tid,name,cost,sell,costDetails,autoPrice){
@@ -458,7 +463,6 @@ function showProfit(tid,name,cost,sell,costDetails,autoPrice){
       +"<div class='bkr tot'><span>Your Vinted Profit</span><span id='vt-profit-"+tid+"'>"+pf(vtPr,vtM)+"</span></div>"
       +marginBtns("vt")
     +"</div>"
-    +"<div style='text-align:center;padding:12px 0 4px'><button id='saveBtn-"+tid+"' class='btn btn-sage' style='width:auto;padding:12px 24px;margin:0;font-size:13px;letter-spacing:.5px'>&#10003; Save This Calculation</button></div>"
     +"</div></div>";
 
   // Wire margin buttons
@@ -497,14 +501,11 @@ function showProfit(tid,name,cost,sell,costDetails,autoPrice){
     });
   });
 
-  g("saveBtn-"+tid).addEventListener("click",function(){
-    var tab=tid==="resaleResults"?"resale":"craft";
-    var key="saved"+tab.charAt(0).toUpperCase()+tab.slice(1);
-    appData[key].unshift({id:Date.now(),name:name,sell:sell,cost:cost,html:div.querySelector(".rbox").outerHTML});
-    save(); renderSaved(tab);
-    this.innerHTML="&#10003; Saved!"; this.style.background="#2E7D32";
-    var btn=this; setTimeout(function(){btn.innerHTML="&#10003; Save This Calculation";btn.style.background="var(--sage)";},2000);
-  });
+  // Auto-save immediately
+  var tab=tid==="resaleResults"?"resale":"craft";
+  var key="saved"+tab.charAt(0).toUpperCase()+tab.slice(1);
+  appData[key].unshift({id:Date.now(),name:name,sell:sell,cost:cost,html:div.querySelector(".rbox").outerHTML});
+  save(); renderSaved(tab);
 }
 
 function renderSaved(tab){
@@ -513,7 +514,10 @@ function renderSaved(tab){
   var div=g(tab+"Saved");
   if(!div)return;
   if(!saved.length){div.innerHTML="";return;}
-  var html="<div style='font-family:Playfair Display,serif;font-size:16px;color:var(--brown);margin-bottom:12px'>Saved Calculations</div>";
+  var html="<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>"
+    +"<div style='font-family:Playfair Display,serif;font-size:16px;color:var(--brown)'>Saved Calculations</div>"
+    +"<button onclick='clearAllSaved(\""+tab+"\")' style='background:none;border:1px solid #ccc;border-radius:6px;color:#999;font-family:Lato,sans-serif;font-size:11px;font-weight:700;cursor:pointer;padding:4px 10px'>Clear All</button>"
+    +"</div>";
   saved.forEach(function(s){
     html+="<div class='si' data-id='"+s.id+"'><div class='si-hdr'><span style='font-weight:700;font-size:14px;color:var(--dark)'>"+s.name+"</span><div style='display:flex;align-items:center;gap:10px'><span class='arr' style='color:#aaa;font-size:12px'>&#9660;</span><button class='edit-btn' style='background:none;border:none;color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;font-family:Lato,sans-serif'>Edit</button><button class='del-btn' style='background:none;border:none;color:#ccc;font-size:16px;cursor:pointer'>&#x2715;</button></div></div><div class='si-edit'><div class='fg'><label>Name</label><input class='edit-name' value='"+s.name.replace(/'/g,"&#39;")+"'></div><div class='r2'><div class='fg'><label>Cost ($)</label><input class='edit-cost' type='number' step='.01' value='"+s.cost.toFixed(2)+"'></div><div class='fg'><label>Sell Price ($)</label><input class='edit-sell' type='number' step='.01' value='"+s.sell.toFixed(2)+"'></div></div><button class='update-btn btn btn-sm' style='margin-top:0'>Save Changes</button></div><div class='si-body'>"+s.html+"</div></div>";
   });
@@ -548,6 +552,63 @@ function renderSaved(tab){
   });
 }
 
+function clearAllSaved(tab){
+  if(!confirm("Clear all saved "+tab+" calculations?"))return;
+  var key="saved"+tab.charAt(0).toUpperCase()+tab.slice(1);
+  appData[key]=[];
+  save(); renderSaved(tab);
+}
+
+// Inventory edit modal
+function openInvEdit(id){
+  var item=appData.inventory.find(function(i){return i.id===id;});
+  if(!item)return;
+  var plats=item.platforms||[];
+  var modal=document.getElementById('invEditModal');
+  modal.innerHTML="<div style='background:white;border-radius:16px 16px 0 0;padding:24px;width:100%;max-width:480px'>"
+    +"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:16px'>"
+    +"<div style='font-family:Playfair Display,serif;font-size:17px;color:var(--brown)'>Edit Item</div>"
+    +"<button onclick=\"document.getElementById('invEditModal').style.display='none'\" style='background:none;border:none;font-size:22px;color:#aaa;cursor:pointer'>&#x2715;</button>"
+    +"</div>"
+    +"<div class='fg'><label>Description</label><input id='ie-desc' value='"+item.desc.replace(/'/g,"&#39;")+"'></div>"
+    +"<div class='fg'><label>Location</label><input id='ie-loc' value='"+(item.location||'').replace(/'/g,"&#39;")+"'></div>"
+    +"<div class='r2'>"
+    +"<div class='fg'><label>Cost ($)</label><input id='ie-cost' type='number' step='.01' value='"+item.cost.toFixed(2)+"'></div>"
+    +"<div class='fg'><label>Quantity</label><input id='ie-qty' type='number' min='1' value='"+item.qty+"'></div>"
+    +"</div>"
+    +"<div class='fg'><label>Listed on</label>"
+    +"<div style='display:flex;gap:8px;margin-top:4px'>"
+    +"<button type='button' onclick=\"toggleInvPlat(this,'whatnot')\" class='plat-edit-btn' data-p='whatnot' style='flex:1;padding:8px;border:1.5px solid "+(plats.indexOf('whatnot')>-1?"var(--gold)":"var(--lb)")+";border-radius:8px;background:"+(plats.indexOf('whatnot')>-1?"var(--gold)":"white")+";font-family:Lato,sans-serif;font-size:13px;cursor:pointer;color:"+(plats.indexOf('whatnot')>-1?"var(--dark)":"#666")+"'>Whatnot</button>"
+    +"<button type='button' onclick=\"toggleInvPlat(this,'vinted')\" class='plat-edit-btn' data-p='vinted' style='flex:1;padding:8px;border:1.5px solid "+(plats.indexOf('vinted')>-1?"var(--gold)":"var(--lb)")+";border-radius:8px;background:"+(plats.indexOf('vinted')>-1?"var(--gold)":"white")+";font-family:Lato,sans-serif;font-size:13px;cursor:pointer;color:"+(plats.indexOf('vinted')>-1?"var(--dark)":"#666")+"'>Vinted</button>"
+    +"</div></div>"
+    +"<button onclick='saveInvEdit("+id+")' class='btn' style='width:100%;margin-top:8px'>Save Changes</button>"
+    +"</div>";
+  modal.style.display='flex';
+}
+
+var _invEditPlats=[];
+function toggleInvPlat(btn,p){
+  var item=appData.inventory.find(function(i){return i.id===_invEditId;});
+  var plats=item?[].concat(item.platforms||[]):[];
+  var idx=plats.indexOf(p);
+  if(idx>-1){plats.splice(idx,1);btn.style.background='white';btn.style.color='#666';btn.style.borderColor='var(--lb)';}
+  else{plats.push(p);btn.style.background='var(--gold)';btn.style.color='var(--dark)';btn.style.borderColor='var(--gold)';}
+  if(item) item.platforms=plats;
+}
+
+var _invEditId=null;
+function saveInvEdit(id){
+  var item=appData.inventory.find(function(i){return i.id===id;});
+  if(!item)return;
+  item.desc=g('ie-desc').value.trim()||item.desc;
+  item.location=g('ie-loc').value.trim();
+  item.cost=parseFloat(g('ie-cost').value)||item.cost;
+  item.qty=parseInt(g('ie-qty').value)||item.qty;
+  item.sold=Math.min(item.sold,item.qty);
+  save(); renderInv();
+  document.getElementById('invEditModal').style.display='none';
+}
+
 function renderInv(){
   var filter=g("invFilter").value;
   var inv=appData.inventory||[];
@@ -572,14 +633,16 @@ function renderInv(){
       "<div style='flex:1'><div style='font-weight:700;font-size:15px;color:var(--dark)'>"+item.desc+"</div>"+
       (item.location?"<div style='font-size:11px;color:#aaa;margin-top:2px'>&#128205; "+item.location+"</div>":"")+
       "<div style='display:flex;gap:4px;flex-wrap:wrap;margin-top:4px'>"+platBadges+soldBadge+"</div></div>"+
-      "<button class='inv-del' style='background:none;border:none;color:#ccc;font-size:16px;cursor:pointer;padding:0 0 0 8px'>&#x2715;</button></div>"+
+      "<div style='display:flex;gap:6px;align-items:center'>"+
+      "<button class='inv-edit' style='background:none;border:1px solid var(--lb);border-radius:6px;color:var(--brown);font-size:11px;font-weight:700;cursor:pointer;padding:3px 8px;font-family:Lato,sans-serif'>Edit</button>"+
+      "<button class='inv-del' style='background:none;border:none;color:#ccc;font-size:16px;cursor:pointer;padding:0'>&#x2715;</button></div></div>"+
       "<div style='display:flex;gap:12px;font-size:13px;color:#666;margin-bottom:10px'>"+
       "<span>Cost: <strong style='color:var(--dark)'>$"+item.cost.toFixed(2)+"</strong></span>"+
       "<span>Qty: <strong style='color:var(--dark)'>"+item.qty+"</strong></span>"+
       "<span>Left: <strong style='color:"+(done?"#C62828":"var(--sage)")+"'>"+rem+"</strong></span></div>"+
       "<div style='display:flex;align-items:center;gap:10px'>"+
       "<label style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#5A3E28;margin:0'>Sold:</label>"+
-      "<input type='number' class='sold-input' value='"+item.sold+"' min='0' max='"+item.qty+"' style='width:60px;padding:6px 10px;border:1.5px solid var(--lb);border-radius:6px;font-size:14px;text-align:center'>"+
+      "<input type='number' class='sold-input' value='"+item.sold+"' min='0' max='"+item.qty+"' style='width:60px;padding:6px 10px;border:1.5px solid var(--lb);border-radius:6px;font-size:14px;text-align:center' onfocus='this.select()'>"+
       "<span style='font-size:12px;color:#aaa'>of "+item.qty+"</span>"+
       (done?"<span style='font-size:11px;font-weight:700;color:#C62828;background:#FFEBEE;padding:3px 8px;border-radius:4px;margin-left:auto'>SOLD OUT</span>":"")+"</div></div>";
   });
@@ -587,6 +650,11 @@ function renderInv(){
   div.querySelectorAll(".inv-card").forEach(function(el){
     var id=el.getAttribute("data-id");
     var numId=parseFloat(id);
+    el.querySelector(".inv-edit").addEventListener("click",function(e){
+      e.stopPropagation();
+      _invEditId=numId;
+      openInvEdit(numId);
+    });
     el.querySelector(".inv-del").addEventListener("click",function(){
       if(!confirm("Delete this item?"))return;
       appData.inventory=appData.inventory.filter(function(i){return i.id!==numId;});

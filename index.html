@@ -64,30 +64,23 @@ window.addEventListener('load', function() {
       }
       if (window._onAppReady) window._onAppReady();
     } else {
-      dbg('onAuthStateChanged: no user — checking getRedirectResult...');
-      auth.getRedirectResult().then(function(result) {
-        if (result && result.user) {
-          dbg('getRedirectResult: user found — ' + result.user.email);
-        } else {
-          dbg('getRedirectResult: no user, showing login screen');
-          document.getElementById('signInScreen').style.display = 'flex';
-          document.getElementById('userBar').style.display = 'none';
-          window._currentUserId = null;
-        }
-      }).catch(function(err) {
-        dbg('getRedirectResult ERROR: ' + err.code + ' — ' + err.message);
-        document.getElementById('signInScreen').style.display = 'flex';
-        document.getElementById('authStatus').textContent = 'Sign in failed: ' + err.message;
-      });
+      dbg('onAuthStateChanged: no user, showing login screen');
+      document.getElementById('signInScreen').style.display = 'flex';
+      document.getElementById('userBar').style.display = 'none';
+      window._currentUserId = null;
     }
   });
 });
 
 window.signInWithGoogle = function() {
-  document.getElementById('authStatus').textContent = 'Redirecting to Google...';
+  document.getElementById('authStatus').textContent = 'Opening Google sign in...';
   const provider = new firebase.auth.GoogleAuthProvider();
-  window.auth.signInWithRedirect(provider).catch(function(err) {
+  window.auth.signInWithPopup(provider).then(function(result) {
+    document.getElementById('authStatus').textContent = 'Signed in as ' + result.user.email;
+  }).catch(function(err) {
     document.getElementById('authStatus').textContent = 'Sign in failed: ' + err.message;
+    const el = document.getElementById('debugLog');
+    if (el) el.innerHTML += '<div>' + new Date().toLocaleTimeString() + ' — POPUP ERROR: ' + err.code + ' — ' + err.message + '</div>';
   });
 };
 

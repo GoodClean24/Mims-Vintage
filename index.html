@@ -11,6 +11,15 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
 window.addEventListener('load', function() {
+
+  function dbg(msg) {
+    console.log('[MimsAuth]', msg);
+    const el = document.getElementById('debugLog');
+    if (el) el.innerHTML += '<div>' + new Date().toLocaleTimeString() + ' — ' + msg + '</div>';
+  }
+
+  dbg('Page loaded, initializing Firebase...');
+
   const firebaseConfig = {
     apiKey: "AIzaSyAIVK_WBVJ8VgS_yIOEt8EcNvo46ZgX5dA",
     authDomain: "mims-vintage-fa075.firebaseapp.com",
@@ -23,18 +32,23 @@ window.addEventListener('load', function() {
   firebase.initializeApp(firebaseConfig);
   window.db = firebase.firestore();
   window.auth = firebase.auth();
+  dbg('Firebase initialized. Auth: ' + (window.auth ? 'OK' : 'FAIL'));
 
   auth.onAuthStateChanged(async function(user) {
     if (user) {
+      dbg('onAuthStateChanged: user signed in — ' + user.email);
       window._currentUserId = user.uid;
       document.getElementById('signInScreen').style.display = 'none';
       document.getElementById('userBar').style.display = 'flex';
       document.getElementById('userName').textContent = user.displayName || user.email || 'Signed in';
       try {
+        dbg('Loading inventory from Firestore...');
         const snap = await db.collection('mimsVintage').doc(user.uid).get();
         if (snap.exists && snap.data().inventory) {
+          dbg('Firestore data found, loading...');
           window.S.inventory = JSON.parse(snap.data().inventory);
         } else {
+          dbg('No Firestore data, checking localStorage...');
           const local = localStorage.getItem('mimsInventory');
           if (local) {
             window.S.inventory = JSON.parse(local);
@@ -42,7 +56,7 @@ window.addEventListener('load', function() {
           }
         }
       } catch(e) {
-        console.warn('Firebase load failed:', e.message);
+        dbg('Firestore error: ' + e.message);
         try {
           const local = localStorage.getItem('mimsInventory');
           if (local) window.S.inventory = JSON.parse(local);
@@ -50,15 +64,18 @@ window.addEventListener('load', function() {
       }
       if (window._onAppReady) window._onAppReady();
     } else {
+      dbg('onAuthStateChanged: no user — checking getRedirectResult...');
       auth.getRedirectResult().then(function(result) {
         if (result && result.user) {
-          // onAuthStateChanged will fire with the user
+          dbg('getRedirectResult: user found — ' + result.user.email);
         } else {
+          dbg('getRedirectResult: no user, showing login screen');
           document.getElementById('signInScreen').style.display = 'flex';
           document.getElementById('userBar').style.display = 'none';
           window._currentUserId = null;
         }
       }).catch(function(err) {
+        dbg('getRedirectResult ERROR: ' + err.code + ' — ' + err.message);
         document.getElementById('signInScreen').style.display = 'flex';
         document.getElementById('authStatus').textContent = 'Sign in failed: ' + err.message;
       });
@@ -186,6 +203,7 @@ window._fbSave = async function(data) {
     Sign in with Google
   </button>
   <div id="authStatus" style="font-size:13px;color:#888;min-height:20px"></div>
+  <div id="debugLog" style="margin-top:16px;background:#f5f5f5;border:1px solid #ddd;border-radius:8px;padding:12px;font-size:11px;color:#333;text-align:left;width:100%;max-width:340px;max-height:200px;overflow-y:auto;font-family:monospace;display:block"></div>
 </div>
 
 <!-- Top User Bar -->
